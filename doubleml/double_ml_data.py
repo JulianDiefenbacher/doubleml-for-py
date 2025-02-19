@@ -844,6 +844,7 @@ class DoubleMLClusterData(DoubleMLData):
         z_cols=None,
         t_col=None,
         s_col=None,
+        m_d_cols=None,
         use_other_treat_as_covariate=True,
         force_all_x_finite=True,
     ):
@@ -851,7 +852,9 @@ class DoubleMLClusterData(DoubleMLData):
 
         # we need to set cluster_cols (needs _data) before call to the super __init__ because of the x_cols setter
         self.cluster_cols = cluster_cols
+        self.m_d_cols = m_d_cols
         self._set_cluster_vars()
+        self._set_m_d()
         DoubleMLData.__init__(
             self, data, y_col, d_cols, x_cols, z_cols, t_col, s_col, use_other_treat_as_covariate, force_all_x_finite
         )
@@ -883,6 +886,8 @@ class DoubleMLClusterData(DoubleMLData):
             data_summary += f"Time variable: {self.t_col}\n"
         if self.s_col is not None:
             data_summary += f"Score/Selection variable: {self.s_col}\n"
+        if self.m_d_cols is not None:
+            data_summary += f"Covariate (treatment) mean variable: {self.m_d_cols}\n"
 
         data_summary += f"No. Observations: {self.n_obs}\n"
         return data_summary
@@ -1002,6 +1007,32 @@ class DoubleMLClusterData(DoubleMLData):
         Array of cluster variable(s).
         """
         return self._cluster_vars.values
+    
+    @property
+    def m_d_cols(self):
+        """
+        The covariate (treatment) mean variable(s).
+        """
+        return self._m_d_cols
+    
+    @m_d_cols.setter
+    def m_d_cols(self, value):
+        # reset_value = hasattr(self, "_m_d_cols")
+        if isinstance(value, str):
+            value = [value]
+        self._m_d_cols = value
+        # if reset_value:
+        #     self._set_m_d()
+    
+    @property
+    def m_d(self):
+        """
+        Array of covariate (treatment) mean variable(s).
+        """
+        if self.m_d_cols is not None:
+            return self._m_d.values
+        else:
+            return None
 
     @DoubleMLData.x_cols.setter
     def x_cols(self, value):
@@ -1093,3 +1124,9 @@ class DoubleMLClusterData(DoubleMLData):
     def _set_cluster_vars(self):
         assert_all_finite(self.data.loc[:, self.cluster_cols])
         self._cluster_vars = self.data.loc[:, self.cluster_cols]
+
+    def _set_m_d(self):
+        if self.m_d_cols is None:
+            self._m_d = None
+        else:
+            self._m_d = self.data.loc[:, self.m_d_cols]
